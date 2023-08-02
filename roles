@@ -1,0 +1,2 @@
+case-monitor:     auditor limited-auditor
+case-admin:       analyst limited-analyst superuser

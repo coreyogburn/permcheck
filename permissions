@@ -1,0 +1,5 @@
+cases/read:       case-monitor
+cases/write:      case-admin
+
+
+case-monitor:     case-admin
