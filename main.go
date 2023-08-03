@@ -34,7 +34,7 @@ func main() {
 	_, err := flags.Parse(args)
 	if err != nil {
 		if flags.WroteHelp(err) {
-			fmt.Println(version)
+			fmt.Printf("v%s\n", version)
 			return
 		}
 
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	if args.PrintVersion {
-		fmt.Println(version)
+		fmt.Printf("v%s\n", version)
 		return
 	}
 
