@@ -1,4 +1,4 @@
-module github.com/coreyog/permcheck
+module github.com/coreyogburn/permcheck
 
 go 1.20
 
