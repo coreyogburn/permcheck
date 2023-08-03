@@ -12,12 +12,12 @@ import (
 )
 
 type Positional struct {
-	Filter string `positional-arg-name:"filter" description:"Filter to only a role or title"`
+	Filter string `positional-arg-name:"filter" description:"Filter to only a role or permission group"`
 }
 
 type Arguments struct {
-	PermissionsFile string `short:"p" long:"permissions" description:"Permission file" required:"true"`
-	RolesFile       string `short:"r" long:"roles" description:"Role file" required:"true"`
+	PermissionsFile string `short:"p" long:"permissions" description:"Permission file" default:"./permissions"`
+	RolesFile       string `short:"r" long:"roles" description:"Role file" default:"./roles"`
 	Positional      `positional-args:"true"`
 }
 
@@ -34,66 +34,66 @@ func main() {
 		panic(err)
 	}
 
-	rolesToTitles := map[string]*col.Set[string]{}      // map[role][]title, i.e. superuser => [admin, moderator]
-	titleToPermissions := map[string]*col.Set[string]{} // map[title][]permission, i.e. admin => [events/write, grid/read]
-	rolesToPermissions := map[string]*col.Set[string]{} // map[role][]permission, i.e. superuser => [events/write, grid/read]
+	rolesToPGroups := map[string]*col.Set[string]{}       // map[role][]pgroup, i.e. superuser => [admin, moderator]
+	pgroupsToPermissions := map[string]*col.Set[string]{} // map[pgroup][]permission, i.e. admin => [events/write, grid/read]
+	rolesToPermissions := map[string]*col.Set[string]{}   // map[role][]permission, i.e. superuser => [events/write, grid/read]
 
-	// map[permission][]titles that have that permission
-	permissionToTitle, err := mapFile(args.PermissionsFile)
+	// map[permission][]pgroups that have that permission
+	permissionToPGroup, err := mapFile(args.PermissionsFile)
 	if err != nil {
 		panic(err)
 	}
 
-	titleToRole, err := mapFile(args.RolesFile)
+	pgroupToRole, err := mapFile(args.RolesFile)
 	if err != nil {
 		panic(err)
 	}
 
-	titleInheritence := map[string]*col.Set[string]{}
+	pgroupInheritence := map[string]*col.Set[string]{}
 
-	for k, v := range permissionToTitle {
+	for k, v := range permissionToPGroup {
 		if !strings.Contains(k, "/") {
-			if titleInheritence[k] == nil {
-				titleInheritence[k] = &col.Set[string]{}
+			if pgroupInheritence[k] == nil {
+				pgroupInheritence[k] = &col.Set[string]{}
 			}
-			titleInheritence[k].Add(v...)
-			delete(permissionToTitle, k)
+			pgroupInheritence[k].Add(v...)
+			delete(permissionToPGroup, k)
 		} else {
-			for _, title := range v {
-				if titleToPermissions[title] == nil {
-					titleToPermissions[title] = &col.Set[string]{}
+			for _, pg := range v {
+				if pgroupsToPermissions[pg] == nil {
+					pgroupsToPermissions[pg] = &col.Set[string]{}
 				}
 
-				titleToPermissions[title].Add(k)
+				pgroupsToPermissions[pg].Add(k)
 			}
 		}
 	}
 
-	for k, v := range titleToRole {
+	for k, v := range pgroupToRole {
 		for _, role := range v {
-			if rolesToTitles[role] == nil {
-				rolesToTitles[role] = &col.Set[string]{}
+			if rolesToPGroups[role] == nil {
+				rolesToPGroups[role] = &col.Set[string]{}
 			}
 
-			rolesToTitles[role].Add(k)
+			rolesToPGroups[role].Add(k)
 		}
 	}
 
-	for k, v := range titleInheritence {
-		for _, title := range v.Slice() {
-			for _, perm := range titleToPermissions[k].Slice() {
-				if titleToPermissions[title] == nil {
-					titleToPermissions[title] = &col.Set[string]{}
+	for k, v := range pgroupInheritence {
+		for _, pg := range v.Slice() {
+			for _, perm := range pgroupsToPermissions[k].Slice() {
+				if pgroupsToPermissions[pg] == nil {
+					pgroupsToPermissions[pg] = &col.Set[string]{}
 				}
 
-				titleToPermissions[title].Add(perm)
+				pgroupsToPermissions[pg].Add(perm)
 			}
 		}
 	}
 
-	for role, titles := range rolesToTitles {
-		for _, title := range titles.Slice() {
-			for _, perm := range titleToPermissions[title].Slice() {
+	for role, pgroups := range rolesToPGroups {
+		for _, pg := range pgroups.Slice() {
+			for _, perm := range pgroupsToPermissions[pg].Slice() {
 				if rolesToPermissions[role] == nil {
 					rolesToPermissions[role] = &col.Set[string]{}
 				}
@@ -103,26 +103,26 @@ func main() {
 		}
 	}
 
-	roles := lo.Keys(rolesToTitles)
-	titles := lo.Keys(titleToPermissions)
+	roles := lo.Keys(rolesToPGroups)
+	groups := lo.Keys(pgroupsToPermissions)
 
-	var filterIsRole, filterIsTitle bool
+	var filterIsRole, filterIsPGroup bool
 
 	if args.Filter != "" {
 		filterIsRole = lo.Contains(roles, args.Filter)
-		filterIsTitle = lo.Contains(titles, args.Filter)
+		filterIsPGroup = lo.Contains(groups, args.Filter)
 	}
 
-	if !filterIsTitle {
-		for role, titles := range rolesToTitles {
+	if !filterIsPGroup {
+		for role, pgroups := range rolesToPGroups {
 			if !filterIsRole || role == args.Filter {
 				fmt.Printf("%s:\n", role)
 				allPerms := col.Set[string]{}
 				buf := bytes.NewBuffer([]byte{})
-				for _, title := range titles.Slice() {
-					fmt.Fprintf(buf, "  %s:\n", title)
-					allPerms.Add(titleToPermissions[title].Slice()...)
-					for _, perm := range titleToPermissions[title].Slice() {
+				for _, pg := range pgroups.Slice() {
+					fmt.Fprintf(buf, "  %s:\n", pg)
+					allPerms.Add(pgroupsToPermissions[pg].Slice()...)
+					for _, perm := range pgroupsToPermissions[pg].Slice() {
 						fmt.Fprintf(buf, "    %s\n", perm)
 					}
 				}
@@ -131,24 +131,24 @@ func main() {
 			}
 		}
 	} else {
-		for title, perms := range titleToPermissions {
-			if !filterIsTitle || title == args.Filter {
-				fmt.Printf("%s:\n", title)
+		for pg, perms := range pgroupsToPermissions {
+			if !filterIsPGroup || pg == args.Filter {
+				fmt.Printf("%s:\n", pg)
 				for _, perm := range perms.Slice() {
 					fmt.Printf("  %s\n", perm)
 				}
 			}
 		}
 
-		if filterIsTitle {
-			rolesWithTitle := []string{}
-			for role, titles := range rolesToTitles {
-				if titles.InSet(args.Filter) {
-					rolesWithTitle = append(rolesWithTitle, role)
+		if filterIsPGroup {
+			rolesWithPGroup := []string{}
+			for role, pgroups := range rolesToPGroups {
+				if pgroups.InSet(args.Filter) {
+					rolesWithPGroup = append(rolesWithPGroup, role)
 				}
 			}
 
-			fmt.Printf("\nrolesWithTitle: [%s]\n", strings.Join(rolesWithTitle, ", "))
+			fmt.Printf("\nrolesWithPermissionGroup: [%s]\n", strings.Join(rolesWithPGroup, ", "))
 		}
 	}
 }
