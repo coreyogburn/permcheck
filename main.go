@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,20 +20,30 @@ type Positional struct {
 type Arguments struct {
 	PermissionsFile string `short:"p" long:"permissions" description:"Permission file" default:"./permissions"`
 	RolesFile       string `short:"r" long:"roles" description:"Role file" default:"./roles"`
+	PrintVersion    bool   `short:"v" long:"version" description:"Print version and exit"`
 	Positional      `positional-args:"true"`
 }
 
 var args *Arguments
+
+//go:embed VERSION
+var version string
 
 func main() {
 	args = &Arguments{}
 	_, err := flags.Parse(args)
 	if err != nil {
 		if flags.WroteHelp(err) {
+			fmt.Println(version)
 			return
 		}
 
 		panic(err)
+	}
+
+	if args.PrintVersion {
+		fmt.Println(version)
+		return
 	}
 
 	rolesToPGroups := map[string]*col.Set[string]{}       // map[role][]pgroup, i.e. superuser => [admin, moderator]
