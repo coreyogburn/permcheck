@@ -4,7 +4,7 @@ Read Security Onion roles and permissions and output them in an easy to understa
 # Install
 
 ```
-go install github.com/coreyog/permcheck
+go install github.com/coreyogburn/permcheck
 ```
 
 # Usage
@@ -14,14 +14,17 @@ Usage:
   permcheck [OPTIONS] [filter]
 
 Application Options:
-  -p, --permissions= Permission file
-  -r, --roles=       Role file
+  -p, --permissions= Permission file (default: ./permissions)
+  -r, --roles=       Role file (default: ./roles)
+  -v, --version      Print version and exit
 
 Help Options:
   -h, --help         Show this help message
 
 Arguments:
-  filter:            Filter to only a role or title
+  filter:            Filter to only a role or permission group
+
+v0.1.3
 ```
 
 ## Output
@@ -89,5 +92,5 @@ case-admin:
   cases/write
   cases/read
 
-rolesWithTitle: [analyst, superuser, limited-analyst]
+rolesWithPermissionGroup: [analyst, superuser, limited-analyst]
 ```
