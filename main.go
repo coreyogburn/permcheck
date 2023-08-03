@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	col "github.com/coreyog/generics/collections"
@@ -154,6 +155,15 @@ func main() {
 }
 
 func mapFile(path string) (map[string][]string, error) {
+	if strings.HasPrefix(path, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			panic(err)
+		}
+
+		path = filepath.Join(home, path[1:])
+	}
+
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
